@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Essay Builder & Live Preview</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font for Academic Papers (Times New Roman fallback) -->
+    <link href="https://fonts.googleapis.com/css2?family=Times+New+Roman&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        /* Academic Paper Font Styling */
+        .academic-paper {
+            font-family: 'Times New Roman', Times, serif;
+            color: #000000;
+            line-height: 2.0;
+        }
+
+        /* A4 Page Styling */
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 25.4mm; /* Standard 1 inch margins */
+            margin: 0 auto 2rem auto;
+            background: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        /* Hanging Indent for References */
+        .hanging-indent {
+            padding-left: 0.5in;
+            text-indent: -0.5in;
+        }
+
+        /* First line indent for standard paragraphs */
+        .academic-paragraph {
+            text-indent: 0.5in;
+            margin-bottom: 0;
+            text-align: justify;
+        }
+
+        /* Custom Scrollbar for Editor */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* PRINT STYLES - Ensures clean output when saving as PDF */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-area {
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                position: static !important;
+            }
+            .a4-page {
+                box-shadow: none !important;
+                margin: 0 !important;
+                width: 100% !important;
+                padding: 25.4mm !important;
+                page-break-after: always;
+            }
+            .a4-page:last-child {
+                page-break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+    <div id="app" class="flex flex-col flex-1 h-screen overflow-hidden">
+        
+        <!-- Header Controls (No-Print) -->
+        <header class="no-print bg-slate-900 border-b border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4 z-10">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-600 rounded-lg text-white">
+                    <i class="fa-solid me-1 fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-wide">Academic Essay Builder</h1>
+                    <p class="text-xs text-slate-400">Vue 3 Live Formatter & APA/MLA/Harvard Generator</p>
+                </div>
+            </div>
+
+            <div class="flex items-center flex-wrap gap-3">
+                <!-- Formatting Style Selector -->
+                <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                    <label class="text-xs font-semibold px-2 text-slate-400">Style:</label>
+                    <select v-model="essayStyle" class="bg-slate-900 text-xs font-medium text-slate-200 rounded px-2 py-1 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option value="APA">APA 7th Edition</option>
+                        <option value="MLA">MLA 9th Edition</option>
+                        <option value="Harvard">Harvard Format</option>
+                        <option value="Chicago">Chicago Style</option>
+                    </select>
+                </div>
+
+                <!-- Font Size Selector -->
+                <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                    <label class="text-xs font-semibold px-2 text-slate-400">Spacing:</label>
+                    <select v-model="lineSpacing" class="bg-slate-900 text-xs font-medium text-slate-200 rounded px-2 py-1 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option value="2.0">Double (2.0)</option>
+                        <option value="1.5">1.5 Lines</option>
+                        <option value="1.0">Single (1.0)</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <button @click="loadSampleData" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-folder-open text-indigo-400"></i> Sample Data
+                </button>
+
+                <button @click="clearAll" class="px-3 py-1.5 bg-slate-800 hover:bg-rose-900/40 hover:text-rose-300 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> Clear
+                </button>
+
+                <button @click="printPaper" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-pdf"></i> Save / Print PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace (Split View) -->
+        <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+            <!-- LEFT SIDE: Editor Panel (No-Print) -->
+            <div class="no-print w-full md:w-1/2 xl:w-2/5 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-hidden">
+                
+                <!-- Navigation Tabs -->
+                <div class="flex border-b border-slate-800 bg-slate-950/50">
+                    <button 
+                        @click="activeTab = 'title'" 
+                        :class="activeTab === 'title' ? 'border-indigo-500 text-indigo-400 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-slate-200'" 
+                        class="flex-1 py-3 px-4 text-xs font-semibold border-b-2 transition text-center flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-id-card"></i> 1. Title Page
+                    </button>
+                    <button 
+                        @click="activeTab = 'body'" 
+                        :class="activeTab === 'body' ? 'border-indigo-500 text-indigo-400 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-slate-200'" 
+                        class="flex-1 py-3 px-4 text-xs font-semibold border-b-2 transition text-center flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-lines"></i> 2. Essay Body
+                    </button>
+                    <button 
+                        @click="activeTab = 'references'" 
+                        :class="activeTab === 'references' ? 'border-indigo-500 text-indigo-400 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-slate-200'" 
+                        class="flex-1 py-3 px-4 text-xs font-semibold border-b-2 transition text-center flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book"></i> 3. References ({{ references.length }})
+                    </button>
+                </div>
+
+                <!-- Tab Contents Container -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+                    <!-- TAB 1: TITLE PAGE FORM -->
+                    <div v-show="activeTab === 'title'" class="space-y-4">
+                        <h2 class="text-sm font-bold text-slate-200 tracking-wider uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-pen-nib text-indigo-400"></i> Cover Page Metadata
+                        </h2>
+                        
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Essay Title *</label>
+                            <input v-model="titleInfo.title" type="text" placeholder="e.g. The Impact of Artificial Intelligence on Higher Education" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Subtitle (Optional)</label>
+                            <input v-model="titleInfo.subtitle" type="text" placeholder="e.g. A Comprehensive Review of Academic Integrity" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Author Name *</label>
+                                <input v-model="titleInfo.author" type="text" placeholder="e.g. Alex Mercer" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Institution / University</label>
+                                <input v-model="titleInfo.institution" type="text" placeholder="e.g. Department of Computer Science, University of Georgia" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Course Code & Name</label>
+                                <input v-model="titleInfo.course" type="text" placeholder="e.g. CS 401: Ethics in Technology" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Instructor / Professor</label>
+                                <input v-model="titleInfo.instructor" type="text" placeholder="e.g. Dr. Sarah Jenkins" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Submission Date</label>
+                                <input v-model="titleInfo.date" type="text" placeholder="e.g. October 24, 2026" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Running Head / Header</label>
+                                <input v-model="titleInfo.runningHead" type="text" placeholder="e.g. AI IN HIGHER EDUCATION" class="w-full bg-slate-800 text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: ESSAY BODY FORM -->
+                    <div v-show="activeTab === 'body'" class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-sm font-bold text-slate-200 tracking-wider uppercase flex items-center gap-2">
+                                <i class="fa-solid fa-align-left text-indigo-400"></i> Essay Text Content
+                            </h2>
+                            <span class="text-xs text-indigo-400 bg-indigo-950/60 px-2.5 py-1 rounded-full border border-indigo-800 font-medium">
+                                {{ wordCount }} Words | {{ charCount }} Chars
+                            </span>
+                        </div>
+
+                        <!-- Abstract Option -->
+                        <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60 space-y-2">
+                            <label class="flex items-center gap-2 text-xs font-medium text-slate-300 cursor-pointer">
+                                <input type="checkbox" v-model="showAbstract" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                                Include Abstract Section (APA Standard)
+                            </label>
+                            <textarea v-if="showAbstract" v-model="abstractText" rows="3" placeholder="Enter abstract summary..." class="w-full bg-slate-900 text-slate-100 text-xs rounded-lg p-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500"></textarea>
+                        </div>
+
+                        <!-- Formatting Helpers -->
+                        <div class="flex flex-wrap items-center gap-1.5 p-2 bg-slate-800 rounded-lg border border-slate-700">
+                            <button @click="insertFormatting('### Section Heading\n')" title="Add Section Heading" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs font-semibold text-slate-200">H3 Heading</button>
+                            <button @click="insertFormatting('**Bold Text**')" title="Bold" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-slate-200">B</button>
+                            <button @click="insertFormatting('*Italic Text*')" title="Italic" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs italic text-slate-200">I</button>
+                            <button @click="insertFormatting('\n> Blockquote text goes here...\n')" title="Blockquote" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200"><i class="fa-solid fa-quote-right"></i> Quote</button>
+                            <button @click="insertCitationPrompt" title="In-text Citation Helper" class="px-2.5 py-1 bg-indigo-900/60 hover:bg-indigo-800 text-indigo-300 rounded text-xs font-medium border border-indigo-700 flex items-center gap-1">
+                                <i class="fa-solid fa-quote-left text-xs"></i> Cite Author
+                            </button>
+                        </div>
+
+                        <!-- Main Content Textarea -->
+                        <div>
+                            <textarea 
+                                ref="essayTextArea"
+                                v-model="essayBody" 
+                                rows="16" 
+                                placeholder="Type or paste your academic essay here. Paragraphs separated by blank lines will automatically indent according to academic standards..." 
+                                class="w-full bg-slate-800 text-slate-100 text-sm leading-relaxed rounded-lg p-4 border border-slate-700 focus:outline-none focus:border-indigo-500 font-mono">
+                            </textarea>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: REFERENCES FORM -->
+                    <div v-show="activeTab === 'references'" class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-sm font-bold text-slate-200 tracking-wider uppercase flex items-center gap-2">
+                                <i class="fa-solid fa-bookmark text-indigo-400"></i> Works Cited / References
+                            </h2>
+                            <span class="text-xs text-slate-400">Auto-sorted alphabetically</span>
+                        </div>
+
+                        <!-- Add Reference Form -->
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-3">
+                            <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wide">Add Reference Entry</h3>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Author(s) (Last, F. M.)</label>
+                                    <input v-model="newRef.author" type="text" placeholder="Smith, J. A." class="w-full bg-slate-900 text-slate-100 text-xs rounded px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Year of Publication</label>
+                                    <input v-model="newRef.year" type="text" placeholder="2023" class="w-full bg-slate-900 text-slate-100 text-xs rounded px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-400 mb-1">Title of Work / Article</label>
+                                <input v-model="newRef.title" type="text" placeholder="Artificial Intelligence in Modern Pedagogy" class="w-full bg-slate-900 text-slate-100 text-xs rounded px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Source / Journal / Publisher</label>
+                                    <input v-model="newRef.source" type="text" placeholder="Journal of Educational Technology, 45(2), 112-128" class="w-full bg-slate-900 text-slate-100 text-xs rounded px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-400 mb-1">DOI or URL (Optional)</label>
+                                    <input v-model="newRef.url" type="text" placeholder="https://doi.org/10.1016/j.edu.2023" class="w-full bg-slate-900 text-slate-100 text-xs rounded px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                                </div>
+                            </div>
+
+                            <button @click="addReference" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add Citation
+                            </button>
+                        </div>
+
+                        <!-- Reference List Items -->
+                        <div class="space-y-2 mt-4">
+                            <div v-for="(ref, index) in references" :key="index" class="p-3 bg-slate-800 rounded-lg border border-slate-700/80 flex items-start justify-between gap-3">
+                                <div class="text-xs space-y-1 text-slate-200">
+                                    <p class="font-medium">
+                                        <span>{{ ref.author }}</span> 
+                                        <span v-if="ref.year"> ({{ ref.year }}).</span> 
+                                        <span class="italic"> {{ ref.title }}.</span> 
+                                        <span> {{ ref.source }}</span>
+                                        <span v-if="ref.url" class="text-indigo-400 underline block text-[10px]">{{ ref.url }}</span>
+                                    </p>
+                                </div>
+                                <button @click="removeReference(index)" class="text-slate-400 hover:text-rose-400 transition p-1">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+
+                            <div v-if="references.length === 0" class="text-center py-6 text-slate-500 text-xs">
+                                No reference entries added yet. Use the form above to add citations.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- RIGHT SIDE: Real-time Academic A4 Preview Panel -->
+            <div class="print-area w-full md:w-1/2 xl:w-3/5 bg-slate-950 overflow-y-auto p-4 md:p-8 flex flex-col items-center">
+                
+                <!-- Helper indicator for screen mode -->
+                <div class="no-print mb-4 flex items-center justify-between w-full max-w-[210mm] text-xs text-slate-400">
+                    <span class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Live Academic Paper Preview ({{ essayStyle }} Format)
+                    </span>
+                    <span>Format: Standard A4 (1-inch Margins)</span>
+                </div>
+
+                <!-- PAGE 1: COVER PAGE / TITLE PAGE -->
+                <div class="a4-page academic-paper flex flex-col justify-between text-black text-[12pt] leading-loose">
+                    <!-- Page Running Head / Header -->
+                    <div class="flex justify-between text-[10pt] uppercase mb-12">
+                        <span>{{ titleInfo.runningHead ? 'RUNNING HEAD: ' + titleInfo.runningHead : '' }}</span>
+                        <span>1</span>
+                    </div>
+
+                    <!-- Center Title Content -->
+                    <div class="my-auto text-center space-y-8">
+                        <div class="space-y-2">
+                            <h1 class="text-[14pt] font-bold tracking-tight">{{ titleInfo.title || 'ESSAY TITLE GOES HERE' }}</h1>
+                            <p v-if="titleInfo.subtitle" class="text-[12pt] italic">{{ titleInfo.subtitle }}</p>
+                        </div>
+
+                        <div class="pt-16 space-y-1 text-[12pt]">
+                            <p class="font-medium">{{ titleInfo.author || 'Author Name' }}</p>
+                            <p>{{ titleInfo.institution || 'Institutional Affiliation' }}</p>
+                            <p v-if="titleInfo.course">{{ titleInfo.course }}</p>
+                            <p v-if="titleInfo.instructor">{{ titleInfo.instructor }}</p>
+                            <p v-if="titleInfo.date">{{ titleInfo.date }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Footer Note or Blank Spacing -->
+                    <div class="text-center text-[10pt] text-gray-500">
+                        <!-- Bottom page placeholder for standard layout -->
+                    </div>
+                </div>
+
+                <!-- PAGE 2: ABSTRACT (OPTIONAL) -->
+                <div v-if="showAbstract" class="a4-page academic-paper text-black text-[12pt]" :style="{ lineHeight: lineSpacing }">
+                    <div class="flex justify-end text-[10pt] mb-8">
+                        <span>2</span>
+                    </div>
+
+                    <h2 class="text-center font-bold text-[12pt] mb-6">Abstract</h2>
+                    <p class="text-[11pt] leading-relaxed text-justify">
+                        {{ abstractText || 'Abstract text summary will appear here once provided...' }}
+                    </p>
+                </div>
+
+                <!-- PAGE 3+: MAIN ESSAY CONTENT -->
+                <div class="a4-page academic-paper text-black text-[12pt]" :style="{ lineHeight: lineSpacing }">
+                    <!-- Header -->
+                    <div class="flex justify-between text-[10pt] mb-8">
+                        <span>{{ titleInfo.runningHead || '' }}</span>
+                        <span>{{ showAbstract ? '3' : '2' }}</span>
+                    </div>
+
+                    <!-- Title Header on Content Page (Standard APA style) -->
+                    <h2 class="text-center font-bold text-[12pt] mb-6">{{ titleInfo.title || 'ESSAY TITLE' }}</h2>
+
+                    <!-- Essay Body Rendered Paragraphs -->
+                    <div class="space-y-4">
+                        <template v-for="(paragraph, index) in formattedParagraphs" :key="index">
+                            <!-- Section Heading -->
+                            <h3 v-if="paragraph.isHeading" class="font-bold text-[12pt] pt-2 mb-1">
+                                {{ paragraph.text }}
+                            </h3>
+                            <!-- Blockquote -->
+                            <blockquote v-else-if="paragraph.isQuote" class="my-4 pl-8 pr-4 italic text-[11pt] border-l-2 border-gray-400 leading-normal">
+                                {{ paragraph.text }}
+                            </blockquote>
+                            <!-- Standard Paragraph -->
+                            <p v-else class="academic-paragraph">
+                                {{ paragraph.text }}
+                            </p>
+                        </template>
+
+                        <div v-if="formattedParagraphs.length === 0" class="text-gray-400 italic text-center py-12">
+                            [ Your essay body content will render here dynamically as you write... ]
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE FINAL: REFERENCES / WORKS CITED -->
+                <div v-if="references.length > 0" class="a4-page academic-paper text-black text-[12pt]" :style="{ lineHeight: lineSpacing }">
+                    <!-- Header -->
+                    <div class="flex justify-end text-[10pt] mb-8">
+                        <span>{{ referencesPageNumber }}</span>
+                    </div>
+
+                    <h2 class="text-center font-bold text-[12pt] mb-6">
+                        {{ essayStyle === 'MLA' ? 'Works Cited' : 'References' }}
+                    </h2>
+
+                    <!-- Sorted References List -->
+                    <div class="space-y-4">
+                        <div 
+                            v-for="(ref, i) in sortedReferences" 
+                            :key="i" 
+                            class="hanging-indent text-[11pt]">
+                            <span>{{ ref.author }}</span>
+                            <span v-if="ref.year"> ({{ ref.year }}).</span>
+                            <span class="italic"> {{ ref.title }}.</span>
+                            <span> {{ ref.source }}.</span>
+                            <span v-if="ref.url"> {{ ref.url }}</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        createApp({
+            setup() {
+                // Active Editor Tab ('title', 'body', 'references')
+                const activeTab = ref('title');
+
+                // Formatting Settings
+                const essayStyle = ref('APA');
+                const lineSpacing = ref('2.0');
+
+                // Title Page Info
+                const titleInfo = ref({
+                    title: 'The Societal Impact of Artificial Intelligence on Higher Education',
+                    subtitle: 'A Critical Examination of Pedagogical Transformation and Ethical Challenges',
+                    author: 'Alex Mercer',
+                    institution: 'Department of Computer Science, University of Georgia',
+                    course: 'CS 4010: Ethics in Modern Technology',
+                    instructor: 'Dr. Sarah Jenkins',
+                    date: 'October 24, 2026',
+                    runningHead: 'AI IN HIGHER EDUCATION'
+                });
+
+                // Abstract Options
+                const showAbstract = ref(true);
+                const abstractText = ref('This paper examines the transformative effects of Artificial Intelligence (AI) integration in contemporary academic environments. By analyzing recent developments in large language models and adaptive learning platforms, we explore both the pedagogical opportunities and ethical dilemmas facing modern higher education. Key findings suggest that while AI enhances personalized learning, robust policy frameworks are necessary to safeguard academic integrity.');
+
+                // Main Essay Body Text
+                const essayBody = ref(
+`### Introduction
+
+The rapid evolution of Artificial Intelligence (AI) has significantly reshaped numerous global industries, with higher education standing at the forefront of this technological shift. As algorithms and automated tools become increasingly sophisticated, educational institutions must navigate the complex interplay between innovation and traditional learning models.
+
+### Pedagogical Benefits of AI Integration
+
+One of the most prominent benefits of AI in academia is the personalization of learning experiences. Adaptive tutoring systems analyze individual student performance in real time, tailoring content to address specific knowledge gaps. Furthermore, automated administrative feedback allows educators to devote more time to research and interactive mentoring.
+
+> "Artificial intelligence does not replace the human teacher; rather, it amplifies the pedagogical reach and provides customized learning pathways previously unimaginable in traditional classrooms."
+
+### Ethical Considerations and Academic Integrity
+
+Despite these advancements, the widespread availability of generative models raises urgent questions regarding academic integrity and authorship. Educational leaders argue that reliance on automated writing tools may compromise critical thinking skills and original analytical reasoning. Consequently, universities worldwide are working to establish comprehensive ethical guidelines to govern AI usage in student research.
+
+### Conclusion
+
+In conclusion, Artificial Intelligence presents a dual paradigm for higher education—offering unprecedented personalized learning while posing profound ethical questions. Striking a balance requires proactive institutional frameworks that encourage responsible technological engagement without diminishing core academic values.`);
+
+                // References List
+                const references = ref([
+                    {
+                        author: 'Brown, K. L., & Davis, M. R.',
+                        year: '2023',
+                        title: 'Navigating AI in the Classroom: Ethics and Opportunity',
+                        source: 'Journal of Educational Technology & Society, 26(3), 45-58',
+                        url: 'https://doi.org/10.1016/j.jets.2023.04.002'
+                    },
+                    {
+                        author: 'Smith, J. A.',
+                        year: '2024',
+                        title: 'Artificial Intelligence and the Future of Academic Writing',
+                        source: 'Academic Pedagogy Review, 12(1), 89-104',
+                        url: 'https://doi.org/10.1080/08832323.2024.112'
+                    }
+                ]);
+
+                // Form for New Reference
+                const newRef = ref({
+                    author: '',
+                    year: '',
+                    title: '',
+                    source: '',
+                    url: ''
+                });
+
+                // Ref for Textarea element
+                const essayTextArea = ref(null);
+
+                // Word and Character Counts
+                const wordCount = computed(() => {
+                    if (!essayBody.value.trim()) return 0;
+                    return essayBody.value.trim().split(/\s+/).length;
+                });
+
+                const charCount = computed(() => {
+                    return essayBody.value.length;
+                });
+
+                // Compute Paragraphs from Raw Text
+                const formattedParagraphs = computed(() => {
+                    if (!essayBody.value) return [];
+                    const lines = essayBody.value.split(/\n+/);
+                    
+                    return lines.map(line => {
+                        const trimmed = line.trim();
+                        if (trimmed.startsWith('### ')) {
+                            return { isHeading: true, text: trimmed.replace('### ', '') };
+                        } else if (trimmed.startsWith('> ')) {
+                            return { isQuote: true, text: trimmed.replace('> ', '').replace(/^"|"$/g, '') };
+                        } else {
+                            return { isHeading: false, isQuote: false, text: trimmed };
+                        }
+                    }).filter(p => p.text.length > 0);
+                });
+
+                // Sorted References alphabetically by author
+                const sortedReferences = computed(() => {
+                    return [...references.value].sort((a, b) => a.author.localeCompare(b.author));
+                });
+
+                // Page count estimation for references header
+                const referencesPageNumber = computed(() => {
+                    let base = 2; // Cover + Body
+                    if (showAbstract.value) base++;
+                    return base;
+                });
+
+                // Helper to Add Reference
+                const addReference = () => {
+                    if (!newRef.value.author || !newRef.value.title) {
+                        alert('Please provide at least the Author and Title for the reference.');
+                        return;
+                    }
+                    references.value.push({ ...newRef.value });
+                    newRef.value = { author: '', year: '', title: '', source: '', url: '' };
+                };
+
+                // Helper to Remove Reference
+                const removeReference = (index) => {
+                    references.value.splice(index, 1);
+                };
+
+                // Insert formatting tags into text area
+                const insertFormatting = (tag) => {
+                    essayBody.value += '\n' + tag;
+                };
+
+                const insertCitationPrompt = () => {
+                    if (references.value.length === 0) {
+                        essayBody.value += ' (Author, Year)';
+                        return;
+                    }
+                    const firstRef = references.value[0];
+                    const lastName = firstRef.author.split(',')[0] || 'Author';
+                    const year = firstRef.year || '2024';
+                    essayBody.value += ` (${lastName}, ${year})`;
+                };
+
+                // Load Sample Data
+                const loadSampleData = () => {
+                    titleInfo.value = {
+                        title: 'The Societal Impact of Artificial Intelligence on Higher Education',
+                        subtitle: 'A Critical Examination of Pedagogical Transformation and Ethical Challenges',
+                        author: 'Alex Mercer',
+                        institution: 'Department of Computer Science, University of Georgia',
+                        course: 'CS 4010: Ethics in Modern Technology',
+                        instructor: 'Dr. Sarah Jenkins',
+                        date: 'October 24, 2026',
+                        runningHead: 'AI IN HIGHER EDUCATION'
+                    };
+                    showAbstract.value = true;
+                    abstractText.value = 'This paper examines the transformative effects of Artificial Intelligence (AI) integration in contemporary academic environments. By analyzing recent developments in large language models and adaptive learning platforms, we explore both the pedagogical opportunities and ethical dilemmas facing modern higher education.';
+                    essayBody.value = `### Introduction\n\nThe rapid evolution of Artificial Intelligence (AI) has significantly reshaped numerous global industries, with higher education standing at the forefront of this technological shift.\n\n### Pedagogical Benefits of AI Integration\n\nOne of the most prominent benefits of AI in academia is the personalization of learning experiences. Adaptive tutoring systems analyze individual student performance in real time.\n\n> "Artificial intelligence does not replace the human teacher; rather, it amplifies the pedagogical reach and provides customized learning pathways."\n\n### Conclusion\n\nIn conclusion, Artificial Intelligence presents a dual paradigm for higher education—offering unprecedented personalized learning while posing profound ethical questions.`;
+                    references.value = [
+                        {
+                            author: 'Brown, K. L., & Davis, M. R.',
+                            year: '2023',
+                            title: 'Navigating AI in the Classroom: Ethics and Opportunity',
+                            source: 'Journal of Educational Technology & Society, 26(3), 45-58',
+                            url: 'https://doi.org/10.1016/j.jets.2023.04.002'
+                        },
+                        {
+                            author: 'Smith, J. A.',
+                            year: '2024',
+                            title: 'Artificial Intelligence and the Future of Academic Writing',
+                            source: 'Academic Pedagogy Review, 12(1), 89-104',
+                            url: 'https://doi.org/10.1080/08832323.2024.112'
+                        }
+                    ];
+                };
+
+                // Clear All Fields
+                const clearAll = () => {
+                    if (confirm('Are you sure you want to clear all contents?')) {
+                        titleInfo.value = { title: '', subtitle: '', author: '', institution: '', course: '', instructor: '', date: '', runningHead: '' };
+                        showAbstract.value = false;
+                        abstractText.value = '';
+                        essayBody.value = '';
+                        references.value = [];
+                    }
+                };
+
+                // Print PDF Function
+                const printPaper = () => {
+                    window.print();
+                };
+
+                return {
+                    activeTab,
+                    essayStyle,
+                    lineSpacing,
+                    titleInfo,
+                    showAbstract,
+                    abstractText,
+                    essayBody,
+                    references,
+                    newRef,
+                    wordCount,
+                    charCount,
+                    formattedParagraphs,
+                    sortedReferences,
+                    referencesPageNumber,
+                    addReference,
+                    removeReference,
+                    insertFormatting,
+                    insertCitationPrompt,
+                    loadSampleData,
+                    clearAll,
+                    printPaper,
+                    essayTextArea
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
